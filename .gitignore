@@ -1,0 +1,10 @@
+# 运行时数据（行情采集 / 交易记录 / 总结）
+*.csv
+summary.txt
+
+# Python 缓存
+__pycache__/
+*.pyc
+
+# Claude Code 本地会话设置
+.claude/
