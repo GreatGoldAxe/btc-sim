@@ -123,6 +123,11 @@ async def main(args):
 
 
 if __name__ == "__main__":
+    # 必须在 argparse 之前：--help 的中文说明在 cp950/GBK 控制台下会 UnicodeEncodeError
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
     parser = argparse.ArgumentParser(
         description="纸面交易器：连币安公开行情，跑动量策略，记录纸面成交。"
     )
@@ -132,10 +137,6 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    try:
-        sys.stdout.reconfigure(encoding="utf-8")
-    except Exception:
-        pass
     try:
         asyncio.run(main(args))
     except KeyboardInterrupt:
