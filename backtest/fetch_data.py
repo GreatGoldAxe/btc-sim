@@ -55,17 +55,24 @@ def fetch_klines(symbol, days, force=False):
     bars = [b for b in bars if first_open <= b[0] <= last_open]
     expected = days * 24 * 60
     print(f"[fetch] {symbol} 共 {len(bars)} 根 K线（窗口应有 {expected} 根）")
-    with open(out_path, "w", newline="", encoding="utf-8") as f:
+    # 先写临时文件再替换，写到一半中断也不会留下残缺的缓存
+    tmp_path = out_path + ".tmp"
+    with open(tmp_path, "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(FIELDS)
         for b in bars:
             w.writerow([b[0], b[1], b[2], b[3], b[4], b[5]])
+    os.replace(tmp_path, out_path)
     print(f"[done] 已缓存 -> {out_path}")
     return out_path
 
 
 def _get_batch(session, symbol, end_ms):
-    """带重试地拉一批（最多 1000 根，截止 end_ms）。失败返回 []。"""
+    """带重试地拉一批（最多 1000 根，截止 end_ms）。
+
+    返回 [] 只表示交易所在 end_ms 之前已没有数据；重试用尽则抛异常，
+    不能返回 []，否则残缺数据会被当成完整数据写进缓存。
+    """
     params = {"symbol": symbol, "interval": INTERVAL, "endTime": end_ms, "limit": 1000}
     for attempt in range(5):
         try:
@@ -74,10 +81,8 @@ def _get_batch(session, symbol, end_ms):
             return r.json()
         except Exception as e:
             if attempt == 4:
-                print(f"[error] 拉取失败: {e!r}", flush=True)
-                return []
+                raise RuntimeError(f"拉取 {symbol} K线失败（已重试 5 次），未写缓存: {e!r}") from e
             time.sleep(2 ** attempt)
-    return []
 
 
 if __name__ == "__main__":
