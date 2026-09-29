@@ -1,6 +1,6 @@
 """回测入口：拉数据（或读缓存），跑回测，打印指标。
 
-依赖: requests（拉数据用）
+依赖: pip install -r requirements.txt（requests，拉数据用）
 
 用法:
     python run_backtest.py --symbol BTCUSDT --days 90

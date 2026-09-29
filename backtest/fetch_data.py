@@ -1,6 +1,6 @@
 """从币安公开 REST 拉历史 1m K 线，缓存到本地 CSV。
 
-依赖: requests
+依赖: pip install -r requirements.txt（requests）
 域名: 用 data-api.binance.vision（官方备用域名，api.binance.com 在部分网络被屏蔽）
 用法:
     python fetch_data.py --symbol BTCUSDT --days 90 [--force]
