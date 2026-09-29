@@ -32,8 +32,8 @@ def compute_metrics(acct, equity_curve, initial_cash):
         dd = (peak - eq) / peak if peak > 0 else 0.0
         max_dd = max(max_dd, dd)
 
-    # 夏普：按日收益率年化（比 1m 逐根更稳定、更有意义）
-    daily = _daily_equities(equity_curve)
+    # 夏普：按日收益率年化（比 1m 逐根更稳定、更有意义）；从初始资金起算，第一天不漏
+    daily = [initial_cash] + _daily_equities(equity_curve)
     sharpe = 0.0
     if len(daily) > 1:
         rets = [daily[k + 1] / daily[k] - 1 for k in range(len(daily) - 1)]
@@ -44,6 +44,8 @@ def compute_metrics(acct, equity_curve, initial_cash):
             sharpe = mean_r / std_r * math.sqrt(365)
 
     reasons = dict(Counter(t["reason"] for t in closed))
+    # 期末未平仓那笔的开仓费不属于已平仓来回，不能算进「手续费/亏损」
+    closed_fees = acct.total_fees - (acct.entry_fee if acct.has_position else 0.0)
 
     return {
         "total_return": total_return,
@@ -56,7 +58,7 @@ def compute_metrics(acct, equity_curve, initial_cash):
         "sharpe": sharpe,
         "total_fees": acct.total_fees,
         "realized_pnl": acct.realized_pnl,
-        "fee_share_of_loss": acct.total_fees / abs(acct.realized_pnl) if acct.realized_pnl < 0 else 0.0,
+        "fee_share_of_loss": closed_fees / abs(acct.realized_pnl) if acct.realized_pnl < 0 else 0.0,
         "reasons": reasons,
         "avg_win": gross_profit / wins if wins else 0.0,
         "avg_loss": gross_loss / losses if losses else 0.0,
