@@ -8,3 +8,7 @@ __pycache__/
 
 # Claude Code 本地会话设置
 .claude/
+
+# 例外：FINDINGS.md 的原始依据（90 分钟实盘纸面测试），随仓库发布
+!results/trades.csv
+!results/summary.txt

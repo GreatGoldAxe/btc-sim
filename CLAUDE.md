@@ -51,6 +51,6 @@ python backtest/run_backtest.py --symbol DOGEUSDT --days 90 --force  # 忽略缓
 
 - **数据缓存**：文件是 `backtest/data/{SYMBOL}_1m_{days}d.csv`，内容是截至最后一根已收盘 K 线的精确 `days` 天窗口，`--force` 会重新拉。下载失败会直接报错，不会写残缺缓存。不带天数的旧文件 `{SYMBOL}_1m.csv` 已不再被读取。
 - 拉 K 线用的是 `data-api.binance.vision`（`api.binance.com` 在部分网络下被屏蔽）。
-- 运行产物（`*.csv`、`summary.txt`）已被 gitignore，并写到**当前工作目录**。`bot.py` 在任何目录都能跑（脚本所在目录会自动进 `sys.path`），但**不要在仓库根目录运行**：根目录的 `trades.csv` / `summary.txt` 是 FINDINGS.md 的原始依据，会被覆盖。
+- 运行产物（`*.csv`、`summary.txt`）已被 gitignore，并写到**当前工作目录**。`bot.py` 在任何目录都能跑（脚本所在目录会自动进 `sys.path`），但**不要在 `results/` 里运行**：`results/trades.csv` 和 `results/summary.txt` 是 FINDINGS.md 的原始依据，在 .gitignore 里单独放行、随仓库发布，运行会覆盖它们。
 - **Windows cp950 编码**：每个入口都在 `argparse` 和第一次 print 中文之前调用 `sys.stdout.reconfigure(encoding="utf-8")`。新脚本也要这么做。
 - 在自动化 shell 里，SIGINT/Ctrl+C 往往送不到 Python 子进程（`finally` 里的总结就不会打印）。所以运行 `bot.py` 时用 `--minutes`，不要靠中断停止。
