@@ -67,19 +67,15 @@ To make sure the 90 minutes weren't just bad luck, I ran a 1-minute version of t
 
 Same story, much bigger sample: before fees, almost exactly zero. After fees, a steady loss of about 0.2% per trade.
 
-## Where the loss comes from
+## The math that explains it
 
-Using the exit mix from the live run:
+Per 100 USDT trade in the live run:
 
 ```
-Expected value per trade
-= 71% × (−0.182)  [timeouts]
-+ 26% × (−0.372)  [stop losses]
-+  3% × (+0.107)  [take profits]
-≈ −0.22 USDT per 100 USDT trade
+Total    −0.223 USDT   (−15.19 / 68)
+= Fees   −0.200 USDT   (13.60 / 68)
++ Price  −0.023 USDT   (−1.59 / 68)
 ```
-
-The actual result was −15.19 / 68 = **−0.223** per trade.
 
 To break even, the bot would need to hit its take-profit about 78% of the time (among trades that hit either target). It hit it 10% of the time.
 
