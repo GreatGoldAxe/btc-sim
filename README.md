@@ -50,13 +50,15 @@ Weekdays turned out to be much more active than weekends (in my short samples, t
 | Fees paid | 13.60 USDT |
 | Result before fees | −1.59 USDT |
 
+*`summary.txt` shows 13.70 USDT in fees because it also includes the buy fee of one trade that was still open when the run ended.*
+
 About **90% of the loss was fees**. Without fees, the strategy was basically break-even — which means the "signal" had no real predictive power. It was like flipping a coin and paying 0.2% every time.
 
 Most trades (71%) just timed out after 60 seconds because the price didn't go anywhere. Only 2 trades actually hit the take-profit.
 
 ### Attempt 4: 90-day backtest
 
-To make sure the 90 minutes weren't just bad luck, I ran the same logic over 90 days of 1-minute data:
+To make sure the 90 minutes weren't just bad luck, I ran a 1-minute version of the same logic over 90 days of 1-minute data:
 
 | Coin | Trades | Result | Fees | Result before fees |
 |---|---|---|---|---|
