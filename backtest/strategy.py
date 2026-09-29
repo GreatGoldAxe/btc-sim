@@ -31,12 +31,15 @@ def entry_signal(bars, i, params):
 
 
 def exit_signal(bar, entry_price, entry_idx, i, params):
-    """在第 i 根收盘时判断是否平仓，返回原因字符串或 None。"""
+    """在第 i 根收盘时判断是否平仓，返回原因字符串或 None。
+
+    入场在第 entry_idx 根的开盘价成交，所以到第 i 根收盘时已持有 i - entry_idx + 1 根。
+    """
     close = bar["close"]
     if close >= entry_price * (1 + params["take_profit"]):
         return "take_profit"
     if close <= entry_price * (1 - params["stop_loss"]):
         return "stop_loss"
-    if i - entry_idx >= params["hold_bars"]:
+    if i - entry_idx + 1 >= params["hold_bars"]:
         return "timeout"
     return None
