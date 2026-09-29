@@ -65,7 +65,7 @@ To make sure the 90 minutes weren't just bad luck, I ran the same logic over 90 
 
 Same story, much bigger sample: before fees, almost exactly zero. After fees, a steady loss of about 0.2% per trade.
 
-## The math that explains it
+## Where the loss comes from
 
 Using the exit mix from the live run:
 
