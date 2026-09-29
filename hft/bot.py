@@ -24,7 +24,7 @@ from strategy import (
 SYMBOL = "dogeusdt"
 
 TRADES_CSV = "trades.csv"
-TRADES_HEADER = ["time_utc", "side", "price", "qty", "fee", "pnl"]
+TRADES_HEADER = ["time_utc", "side", "price", "qty", "fee", "pnl", "reason"]
 SUMMARY_TXT = "summary.txt"
 
 

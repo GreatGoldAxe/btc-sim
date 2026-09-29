@@ -45,7 +45,7 @@ class Account:
         self.entry_fee = fee
         self.total_fees += fee
         fill = {"time_utc": time_utc, "side": "BUY", "price": price,
-                "qty": qty, "fee": fee, "pnl": 0.0}
+                "qty": qty, "fee": fee, "pnl": 0.0, "reason": ""}
         self._record(fill)
         return fill
 
@@ -65,7 +65,7 @@ class Account:
         self.closed_trades.append({"pnl": pnl, "reason": reason})
 
         fill = {"time_utc": time_utc, "side": "SELL", "price": price,
-                "qty": qty, "fee": fee, "pnl": pnl}
+                "qty": qty, "fee": fee, "pnl": pnl, "reason": reason or ""}
         self._record(fill)
 
         self.position_qty = 0.0
