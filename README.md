@@ -1,98 +1,153 @@
 # btc-sim
 
-币安现货的**纸面交易器 + K 线回测**，一个学习项目。它用一次实盘纸面测试和一次 90 天回测回答了同一个问题：
+A paper trading system and a 1-minute backtester for Binance spot. I built them to test whether a short-horizon momentum strategy can make money after trading fees.
 
-> 在 0.1% 手续费下，秒级到分钟级的动量策略能不能赚钱？
-> **不能。亏损几乎全部来自手续费，价格方向上的盈亏接近零。**
+Short answer: in this setup, no. Almost all of the loss is fees. The price moves themselves net out to roughly zero.
 
-*A learning project: a live paper trader and a 1-minute backtester for Binance spot. Both show that a short-horizon momentum strategy under 0.1% taker fees loses almost exactly its fees. The price edge is ≈ 0.*
+## Motivation
 
-> ⚠️ 不接真实资金，不需要 API Key，只用币安公开行情。**不构成任何投资建议。**
+I came across a viral post claiming that an AI trading bot turned $68 into $750K. I wanted to check for myself whether this kind of high-frequency strategy can work.
 
----
+## Hypothesis
 
-## 结果
+A simple momentum strategy that buys after a short price rise and exits within about a minute can stay profitable after paying Binance spot fees (0.1% per side).
 
-### 实盘纸面测试（DOGEUSDT，90 分钟，68 笔来回）
+## Experiment
 
-| 指标 | 值 |
+**Live paper trader (`hft/`)**
+- **Market data**: Binance public WebSocket, trades and best bid/ask on one combined stream, with automatic reconnect. No API key needed.
+- **Simulated account**: 1,000 USDT starting cash, 100 USDT per trade, one position at a time, 0.1% fee on both buy and sell. Buys fill at the best ask and sells at the best bid.
+- **Strategy**:
+  - Entry: buy when the last trade price has risen more than 0.01% within 30 seconds.
+  - Exit at whichever comes first: +0.3% take profit, −0.15% stop loss, or 60 seconds.
+- **Output**: every fill is written to `trades.csv`, and a summary is written to `summary.txt` at the end.
+
+**Backtest (`backtest/`)**
+- **Data**: 1-minute klines from Binance's public REST API.
+- **Strategy**: the same logic in bars. Momentum over 1 bar, same 0.01% threshold and same +0.3% / −0.15% exits, maximum hold of 1 bar.
+- **No look-ahead**: decisions are made at the close of bar *i* and filled at the open of bar *i+1*.
+- **Shared accounting**: uses the same account code as the live trader, so fees and P&L are computed identically.
+
+**How the parameters got here.** The first version (5 s window, +0.05% threshold, +0.1% take profit) almost never traded on BTC. Its take profit was also smaller than the 0.2% round-trip fee, so every winning trade would still lose money. After widening the parameters, BTC trades all ended by timeout. I then switched to DOGE, the only coin whose 1-minute moves regularly reached the exit levels (see the tables below). The records of these two earlier runs were not kept.
+
+## Findings
+
+Full analysis: [FINDINGS.md](FINDINGS.md). Raw data for the live run: [results/](results/).
+
+### Volatility: weekend vs weekday (BTC, 60 s window)
+
+| Sample | Median move | Max move |
+|---|---|---|
+| Weekend (240 s sample, 2,642 trades) | 0.0069% | 0.0235% |
+| Weekday (180 s sample) | 0.025% | 0.179% |
+
+### Volatility by coin (weekday, 60 s window, 180 s sample)
+
+| Symbol | Median move | Max move | Hits −0.15% stop | Hits +0.3% target |
+|---|---|---|---|---|
+| BTCUSDT | 0.025% | 0.179% | 1.7% | 0.0% |
+| ETHUSDT | 0.023% | 0.183% | 1.9% | 0.0% |
+| SOLUSDT | 0.049% | 0.230% | 13.8% | 0.0% |
+| DOGEUSDT | 0.083% | 0.466% | 44.8% | 27.7% |
+
+These two tables come from samples only 3–4 minutes long, and the raw data was not kept, so they cannot be re-checked. They only explain why I moved from BTC to DOGE and are not evidence for the conclusion.
+
+### Live paper trading: DOGEUSDT, 90 minutes
+
+| Metric | Value |
 |---|---|
-| 总盈亏 | −15.19 USDT（本金 1000，每笔 100） |
-| 其中手续费 | 13.60 USDT，**占亏损 89.5%** |
-| 不计手续费的价差盈亏 | −1.59 USDT |
-| 胜率 | 5/68 = 7.4%（真正触及止盈的只有 2 笔） |
-| 平仓原因 | 超时 48 · 止损 18 · 止盈 2 |
+| Round trips | 68 |
+| Win rate | 5 / 68 = 7.4% |
+| Net P&L | −15.19 USDT (−1.52% of capital) |
+| Fees on the 68 round trips | 13.60 USDT (89.5% of the loss) |
+| P&L before fees | −1.59 USDT |
+| Final equity | 984.66 USDT |
 
-完整分析、推导过程和局限性见 [FINDINGS.md](FINDINGS.md)。
+| Exit reason | Count | Share | Avg P&L per trade (after fees) |
+|---|---|---|---|
+| Timeout | 48 | 70.6% | −0.182 USDT |
+| Stop loss | 18 | 26.5% | −0.372 USDT |
+| Take profit | 2 | 2.9% | +0.107 USDT |
 
-### 回测（1m K 线，90 天，截至 2026-09-29）
+Only 2 of the 5 winning trades actually reached the take-profit level. The other 3 were timeouts where the price had moved just enough to cover fees.
 
-| 标的 | 来回次数 | 总盈亏 | 手续费 | 不计手续费的价差盈亏 | 每笔平均 |
-|---|---|---|---|---|---|
-| BTCUSDT | 31,603 | −6,273 USDT | 6,321 USDT | ≈ +47 USDT | −0.20% |
-| DOGEUSDT | 39,836 | −7,942 USDT | 7,967 USDT | ≈ +25 USDT | −0.20% |
+### Backtest: 90 days of 1-minute bars (129,600 bars, ending 2026-09-29)
 
-每笔 100 USDT，平均每笔亏 0.20%，正好是买卖双边各 0.1% 的手续费。三万多笔交易下来，价格方向贡献的盈亏几乎为零。回测结果和实盘测试的结论一致。
+Starting capital is 100,000 USDT with 100 USDT per trade.
 
----
+| Symbol | Round trips | Win rate | Net P&L | Fees | Net P&L + fees | Return |
+|---|---|---|---|---|---|---|
+| BTCUSDT | 31,603 | 0.5% | −6,273.45 USDT | 6,320.75 USDT | ≈ +47 USDT | −6.27% |
+| DOGEUSDT | 39,836 | 1.8% | −7,941.91 USDT | 7,967.23 USDT | ≈ +25 USDT | −7.94% |
 
-## 项目结构
+Exits:
+- BTC: 31,320 timeouts, 238 stop losses, 45 take profits.
+- DOGE: 38,303 timeouts, 1,295 stop losses, 238 take profits.
+
+Both symbols lost about 0.20 USDT per 100 USDT trade, which equals the round-trip fee.
+
+### Expected value per trade
+
+The table below uses the exit mix and per-trade averages from the live run:
 
 ```
-hft/                  实时纸面交易
-  market.py           币安 WebSocket 合并流（逐笔成交 + 最优买卖价），断线指数退避重连
-  strategy.py         动量策略：30s 涨幅 > 0.01% 入场；止盈 0.3% / 止损 0.15% / 60s 超时
-  account.py          记账：现金、持仓、双边 0.1% 手续费、已实现盈亏（回测也用它）
-  bot.py              主程序，成交逐笔写 trades.csv，结束时写 summary.txt
-  btc_price_stream.py 独立的 BTC 逐笔成交采集器
-
-backtest/             K 线回测
-  fetch_data.py       从币安公开 REST 拉 1m K 线并缓存
-  strategy.py         同一套动量逻辑的纯函数版本（入场 / 离场信号）
-  engine.py           逐根回放引擎
-  metrics.py          收益、胜率、盈亏比、最大回撤、夏普、手续费占比
-  run_backtest.py     入口
-
-FINDINGS.md           实验记录与分析
+EV = 0.706 × (−0.182) + 0.265 × (−0.372) + 0.029 × (+0.107)
+   ≈ −0.224 USDT per 100 USDT trade (−0.22%)
 ```
 
-## 快速开始
+The actual result is −15.19 / 68 = −0.223. The small gap comes from rounding the averages. It breaks down as:
 
-需要 Python 3.11 及以上。
+| Component | Per trade |
+|---|---|
+| Fees (13.60 / 68) | −0.200 USDT |
+| Price movement (−1.59 / 68) | −0.023 USDT |
+
+For the exits to break even, a take profit (+0.107) has to offset a stop loss (−0.372). That needs a take-profit share of 0.372 / (0.107 + 0.372) ≈ 78% among trades that hit either level. The observed share was 2 / 20 = 10%.
+
+## Conclusion & Limitations
+
+**Conclusion.** Both the 90-minute live run and the 90-day backtest show the same thing: the strategy has close to zero edge in price direction, and the 0.2% round-trip fee turns that into a steady loss. Switching to limit orders would not help. Binance spot's base tier (VIP0) charges 0.10% for both maker and taker orders, and a paper simulation would also overstate how often limit orders get filled.
+
+**Limitations.**
+- **Small live sample**: one coin, one day, 90 minutes, 68 round trips. That is not enough for statistical conclusions.
+- **Overfitting risk**: parameters and the traded symbol were changed several times based on short samples, which makes it easy to fit noise.
+- **Optimistic paper fills**: the simulation assumes every order fills instantly at the best bid/ask. Real results would likely be worse.
+- **Backtest simplifications**:
+  - Fills at the bar open, with no spread or slippage.
+  - Exits are checked only at bar close, so moves inside a bar are missed.
+  - The shortest momentum window is 1 bar (60 s), while the live trader uses 30 s.
+- **One test period**: the backtest covers a single 90-day window.
+- **Unverifiable tables**: the volatility tables above cannot be reproduced.
+
+## How to Run
+
+Requires Python 3.11+.
 
 ```bash
 pip install -r hft/requirements.txt -r backtest/requirements.txt
 
-# 实时纸面交易：跑 3 分钟后自动停止并打印总结
-cd hft && python bot.py --minutes 3
+# Live paper trading: stops after 3 minutes and prints a summary.
+# Writes trades.csv and summary.txt to the current directory.
+cd hft
+python bot.py --minutes 3
+cd ..
 
-# 回测：BTC + DOGE，7 天冒烟测试 / 90 天完整回测（首次运行会下载数据）
-python backtest/run_backtest.py --all --days 7
-python backtest/run_backtest.py --all --days 90
+# Backtest BTC + DOGE (the first run downloads 1-minute klines into backtest/data/)
+python backtest/run_backtest.py --all --days 7    # quick check
+python backtest/run_backtest.py --all --days 90   # full run
 ```
 
-## 设计要点
+Backtest numbers will differ from the table above if you run it on a different date, because the 90-day window ends at the time of the run.
 
-- **撮合规则**：用最新成交价判断信号，用盘口价成交：买按卖一价（ask），卖按买一价（bid）。
-- **实盘与回测共用记账**：`backtest/engine.py` 直接调用 `hft/account.py`，两边手续费和盈亏的算法完全一样。
-- **防前视偏差**：回测在第 i 根 K 线收盘时决策，在第 i+1 根开盘价成交，决策时只用得到当时已有的数据。
-- **数据缓存**：K 线按「交易对 + 天数」缓存，窗口截至最后一根已收盘的 K 线。下载失败会直接报错，不会写残缺数据。
+## About
 
-## 局限性
+This is a learning project, built with the help of [Claude Code](https://claude.com/claude-code).
 
-- 实盘测试只有 90 分钟、68 笔、单一标的，不足以下任何统计结论。
-- 回测按开盘价成交，**没有买卖价差和滑点**，所以回测结果偏乐观，而它已经是亏损的。
-- 回测只在 K 线收盘时判断止盈止损，K 线内部触及的不会被识别；动量窗口最短是 1 根（60s），实盘是 30s。
-- 纸面撮合假设 100% 成交。
+**Disclaimer:** paper trading only. No real money or exchange account is involved. Nothing here is investment advice.
 
-## 开发记录
+## Contact
 
-初版代码由 AI 生成。之后又做了一轮完整审查，修复了 9 个问题，其中 3 个会影响回测结论的可信度：
-- 回测持仓时长多算了一根 K 线；
-- `--days` 参数被缓存静默忽略，「90 天」BTC 回测实际只用了 7.6 天；
-- FINDINGS 里有些数字对不上总数。
-
-每个修复都是单独的提交，可以在 [提交历史](../../commits/main) 里逐个查看。
+greatgoldaxe.dev@gmail.com, or open an issue in this repository.
 
 ## License
 
