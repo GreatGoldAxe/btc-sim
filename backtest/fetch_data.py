@@ -17,24 +17,30 @@ import requests
 BASE_URL = "https://data-api.binance.vision/api/v3/klines"
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 INTERVAL = "1m"
+BAR_MS = 60 * 1000
 FIELDS = ["timestamp_ms", "open", "high", "low", "close", "volume"]
 
 
 def fetch_klines(symbol, days, force=False):
-    """拉 symbol 最近 days 天的 1m K线，缓存到 CSV，返回缓存路径。"""
+    """拉 symbol 最近 days 天（截至最后一根已收盘）的 1m K线，缓存到 CSV，返回缓存路径。
+
+    缓存按「交易对 + 天数」命名，不同 --days 互不复用。
+    """
     os.makedirs(DATA_DIR, exist_ok=True)
-    out_path = os.path.join(DATA_DIR, f"{symbol}_{INTERVAL}.csv")
+    out_path = os.path.join(DATA_DIR, f"{symbol}_{INTERVAL}_{days}d.csv")
     if not force and os.path.exists(out_path):
         print(f"[skip] 已存在 {out_path}（--force 可重新拉取）")
         return out_path
 
     now_ms = int(time.time() * 1000)
-    start_ms = now_ms - days * 24 * 3600 * 1000
-    end_ms = now_ms
+    # 最后一根已收盘 K 线的开盘时间；当前这根还没收盘，不要
+    last_open = now_ms // BAR_MS * BAR_MS - BAR_MS
+    first_open = last_open - (days * 24 * 60 - 1) * BAR_MS
+    end_ms = last_open
 
     s = requests.Session()
     bars = []
-    while end_ms > start_ms:
+    while end_ms >= first_open:
         batch = _get_batch(s, symbol, end_ms)
         if not batch:
             break
@@ -45,7 +51,10 @@ def fetch_klines(symbol, days, force=False):
             print(f"[fetch] {symbol} 累计 {len(bars)} 根，已回到 "
                   f"{time.strftime('%Y-%m-%d', time.gmtime(earliest / 1000))}", flush=True)
 
-    print(f"[fetch] {symbol} 共 {len(bars)} 根 K线")
+    # 最后一批会越过窗口起点，裁掉多出来的部分
+    bars = [b for b in bars if first_open <= b[0] <= last_open]
+    expected = days * 24 * 60
+    print(f"[fetch] {symbol} 共 {len(bars)} 根 K线（窗口应有 {expected} 根）")
     with open(out_path, "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(FIELDS)
