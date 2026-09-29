@@ -77,7 +77,7 @@ Expected value per trade
 ≈ −0.22 USDT per 100 USDT trade
 ```
 
-The actual result was −15.19 / 68 = **−0.223** per trade. The math matched reality almost exactly, which honestly was the most satisfying part of this project.
+The actual result was −15.19 / 68 = **−0.223** per trade.
 
 To break even, the bot would need to hit its take-profit about 78% of the time (among trades that hit either target). It hit it 10% of the time.
 
@@ -85,7 +85,6 @@ To break even, the bot would need to hit its take-profit about 78% of the time (
 
 - **Fees matter more than anything.** If typical price moves are smaller than your trading costs, no clever entry rule will save you.
 - **Measure before you guess.** When the bot didn't trade, measuring real volatility told me more than tweaking settings would have.
-- **Expected value is a great sanity check.** A few lines of math predicted the result before I even finished the run.
 - **Be careful with tuning.** I changed settings several times based on short samples. That's a good way to fool yourself (overfitting).
 - **Viral "I made $750K" posts deserve skepticism.** Real edges in trading are small, hard to find, and usually competed away quickly.
 
