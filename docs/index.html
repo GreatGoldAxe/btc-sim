@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>btc-sim · Can a trading bot beat the fees?</title>
+  <meta name="description" content="A paper-trading experiment: can a simple high-frequency trading bot make money after fees? Change the settings and backtest it in your browser.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232a78d6'/%3E%3Cpath d='M6 11l7 7 5-5 8 9' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/style.css">
+  <script>
+    // 在首帧之前套用主题，避免闪烁
+    try {
+      const th = localStorage.getItem("btc-sim-theme");
+      if (th === "light" || th === "dark") document.documentElement.dataset.theme = th;
+    } catch {}
+  </script>
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <a class="brand" href="#top">btc-sim</a>
+      <nav class="topnav" aria-label="Sections">
+        <a href="#lab" data-i18n="nav.lab">Strategy lab</a>
+        <a href="#breakeven" data-i18n="nav.breakeven">Break-even</a>
+        <a href="#replay" data-i18n="nav.replay">Live run</a>
+      </nav>
+      <div class="topbar-actions">
+        <button type="button" class="btn-ghost" id="lang-toggle" data-i18n="nav.lang">中文</button>
+        <button type="button" class="btn-ghost btn-icon" id="theme-toggle" data-i18n-aria="nav.theme" aria-label="Toggle dark mode">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z" fill="currentColor"/></svg>
+        </button>
+        <a class="btn-ghost btn-icon" href="https://github.com/GreatGoldAxe/btc-sim" aria-label="GitHub">
+          <svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero wrap">
+      <p class="kicker" data-i18n="hero.kicker">A paper-trading experiment</p>
+      <h1 data-i18n="hero.title">Can a simple trading bot beat the fees?</h1>
+      <p class="lede" data-i18n="hero.lede"></p>
+      <p class="lede lede-strong" data-i18n="hero.answer"></p>
+      <div class="hero-stats">
+        <div class="hero-stat"><span class="hero-num">68</span><span data-i18n="hero.s1">trades in the live run</span></div>
+        <div class="hero-stat"><span class="hero-num">−15.19</span><span data-i18n="hero.s2">result (USDT)</span></div>
+        <div class="hero-stat"><span class="hero-num">90%</span><span data-i18n="hero.s3">of the loss was fees</span></div>
+      </div>
+      <p class="disclaimer" data-i18n="hero.disclaimer"></p>
+    </section>
+
+    <!-- 1 参数实验室 -->
+    <section class="section wrap" id="lab" aria-labelledby="lab-title">
+      <div class="section-head">
+        <span class="section-num" data-i18n="lab.num">1</span>
+        <h2 id="lab-title" data-i18n="lab.title">Strategy lab</h2>
+      </div>
+      <p class="section-intro" data-i18n="lab.intro"></p>
+
+      <div class="filters" role="group">
+        <div class="field">
+          <span class="field-label" data-i18n="lab.coin">Coin</span>
+          <div class="seg" id="coin-seg">
+            <button type="button" data-v="BTCUSDT">BTC</button>
+            <button type="button" data-v="DOGEUSDT">DOGE</button>
+            <button type="button" data-v="ETHUSDT">ETH</button>
+            <button type="button" data-v="SOLUSDT">SOL</button>
+          </div>
+        </div>
+        <div class="field">
+          <span class="field-label" data-i18n="lab.period">Period</span>
+          <div class="seg" id="days-seg">
+            <button type="button" data-v="7"></button>
+            <button type="button" data-v="30"></button>
+            <button type="button" data-v="90"></button>
+          </div>
+        </div>
+        <div class="field">
+          <span class="field-label" data-i18n="lab.source">Data</span>
+          <div class="seg" id="source-seg">
+            <button type="button" data-v="snapshot" data-i18n="lab.source.snapshot">Built-in</button>
+            <button type="button" data-v="latest" data-i18n="lab.source.latest">Latest from Binance</button>
+          </div>
+        </div>
+      </div>
+      <p class="data-note" id="data-note" aria-live="polite"></p>
+
+      <div class="lab-grid">
+        <div class="card params">
+          <div class="card-head">
+            <h3 data-i18n="lab.params">Strategy settings</h3>
+          </div>
+          <div class="presets">
+            <span class="field-label" data-i18n="lab.presets">Presets</span>
+            <div class="preset-row" id="presets">
+              <button type="button" class="chip" data-preset="original" data-i18n="preset.original"></button>
+              <button type="button" class="chip" data-preset="nofee" data-i18n="preset.nofee"></button>
+              <button type="button" class="chip" data-preset="wide" data-i18n="preset.wide"></button>
+              <button type="button" class="chip" data-preset="picky" data-i18n="preset.picky"></button>
+            </div>
+          </div>
+          <div id="sliders"></div>
+        </div>
+
+        <div class="results" id="results">
+          <div class="tiles">
+            <div class="tile tile-hero">
+              <span class="tile-label" data-i18n="res.net">Result after fees</span>
+              <span class="tile-value" id="r-net">–</span>
+              <span class="tile-sub" id="r-return"></span>
+            </div>
+            <div class="tile">
+              <span class="tile-label" data-i18n="res.before">Result before fees</span>
+              <span class="tile-value" id="r-before">–</span>
+            </div>
+            <div class="tile">
+              <span class="tile-label" data-i18n="res.fees">Fees paid</span>
+              <span class="tile-value" id="r-fees">–</span>
+            </div>
+            <div class="tile">
+              <span class="tile-label" data-i18n="res.trades">Round trips</span>
+              <span class="tile-value" id="r-trades">–</span>
+            </div>
+            <div class="tile">
+              <span class="tile-label" data-i18n="res.winrate">Winning trades</span>
+              <span class="tile-value" id="r-winrate">–</span>
+              <span class="tile-sub" id="r-wins"></span>
+            </div>
+          </div>
+
+          <div class="per-trade" id="per-trade">
+            <span class="per-trade-label" data-i18n="res.perTrade">Per 100 USDT trade</span>
+            <div class="eq">
+              <div class="eq-part"><span class="eq-val" id="pt-total">–</span><span class="eq-name" data-i18n="res.eq.total">Total</span></div>
+              <span class="eq-op">=</span>
+              <div class="eq-part"><span class="eq-val" id="pt-fees">–</span><span class="eq-name" data-i18n="res.eq.fees">Fees</span></div>
+              <span class="eq-op">+</span>
+              <div class="eq-part"><span class="eq-val" id="pt-price">–</span><span class="eq-name" data-i18n="res.eq.price">Price move</span></div>
+            </div>
+          </div>
+          <p class="notice" id="no-trades" hidden data-i18n="res.noTrades"></p>
+        </div>
+      </div>
+
+      <div class="card chart-card">
+        <div class="card-head">
+          <div>
+            <h3 data-i18n="chart.pnl">Cumulative result</h3>
+            <p class="card-sub" data-i18n="chart.pnl.sub"></p>
+          </div>
+          <div class="legend" id="pnl-legend">
+            <span class="legend-item"><span class="key-line" style="--key: var(--series-1)"></span><span data-i18n="series.after">After fees</span></span>
+            <span class="legend-item"><span class="key-line" style="--key: var(--series-2)"></span><span data-i18n="series.before">Before fees</span></span>
+          </div>
+        </div>
+        <div id="pnl-chart" class="chart-host"></div>
+        <details class="table-details" id="daily-details">
+          <summary data-i18n="daily.toggle">Show daily results table</summary>
+          <div class="table-scroll">
+            <table class="data-table" id="daily-table">
+              <thead><tr><th data-i18n="daily.date">Day (UTC)</th><th class="num" data-i18n="res.trades">Round trips</th><th class="num" data-i18n="daily.before">Before fees</th><th class="num" data-i18n="daily.after">After fees</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </details>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3 data-i18n="exits.title">How trades ended</h3></div>
+        <div class="table-scroll">
+          <table class="data-table" id="exit-table">
+            <thead>
+              <tr>
+                <th data-i18n="exits.reason">Exit</th>
+                <th class="num" data-i18n="exits.count">Trades</th>
+                <th data-i18n="exits.share">Share</th>
+                <th class="num" data-i18n="exits.avgBefore">Avg before fees</th>
+                <th class="num" data-i18n="exits.avgAfter">Avg after fees</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card real-card" id="real">
+        <div class="card-head">
+          <div>
+            <h3 data-i18n="real.title">How close is this to real trading?</h3>
+            <p class="card-sub" data-i18n="real.intro"></p>
+          </div>
+        </div>
+        <ul class="real-list">
+          <li><div><strong data-i18n="real.fill.t"></strong><p data-i18n="real.fill.d"></p></div><span class="dir dir-worse"><span aria-hidden="true">↓</span> <span data-i18n="real.worse"></span></span></li>
+          <li><div><strong data-i18n="real.spread.t"></strong><p data-i18n="real.spread.d"></p></div><span class="dir dir-worse"><span aria-hidden="true">↓</span> <span data-i18n="real.worse"></span></span></li>
+          <li><div><strong data-i18n="real.other.t"></strong><p data-i18n="real.other.d"></p></div><span class="dir dir-worse"><span aria-hidden="true">↓</span> <span data-i18n="real.worse"></span></span></li>
+          <li><div><strong data-i18n="real.bars.t"></strong><p data-i18n="real.bars.d"></p></div><span class="dir"><span aria-hidden="true">↕</span> <span data-i18n="real.either"></span></span></li>
+          <li><div><strong data-i18n="real.impact.t"></strong><p data-i18n="real.impact.d"></p></div><span class="dir"><span aria-hidden="true">–</span> <span data-i18n="real.negligible"></span></span></li>
+          <li><div><strong data-i18n="real.fee.t"></strong><p data-i18n="real.fee.d"></p></div><span class="dir dir-ok"><span aria-hidden="true">✓</span> <span data-i18n="real.accurate"></span></span></li>
+        </ul>
+        <div class="real-verdict">
+          <strong data-i18n="real.verdict.t"></strong>
+          <p data-i18n="real.verdict.d"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2 保本计算器 -->
+    <section class="section wrap" id="breakeven" aria-labelledby="be-title">
+      <div class="section-head">
+        <span class="section-num" data-i18n="be.num">2</span>
+        <h2 id="be-title" data-i18n="be.title">Break-even calculator</h2>
+      </div>
+      <p class="section-intro" data-i18n="be.intro"></p>
+
+      <div class="card be-card">
+        <div class="preset-row" id="be-presets">
+          <button type="button" class="chip" data-be="live" data-i18n="be.preset.live"></button>
+          <button type="button" class="chip" data-be="first" data-i18n="be.preset.first"></button>
+          <button type="button" class="chip" data-be="sym" data-i18n="be.preset.sym"></button>
+        </div>
+        <div class="be-inputs" id="be-inputs"></div>
+
+        <div class="be-outcomes">
+          <div class="be-out"><span class="be-out-label" data-i18n="be.win">A take-profit trade</span><span class="be-out-val" id="be-win">–</span></div>
+          <div class="be-out"><span class="be-out-label" data-i18n="be.loss">A stop-loss trade</span><span class="be-out-val" id="be-loss">–</span></div>
+          <div class="be-out"><span class="be-out-label" data-i18n="be.flat">A trade where the price doesn't move</span><span class="be-out-val" id="be-flat">–</span></div>
+        </div>
+        <p class="be-per" data-i18n="be.per">per 100 USDT, after fees</p>
+
+        <p class="be-verdict" id="be-verdict" aria-live="polite"></p>
+        <div class="meter" id="be-meter" aria-hidden="true">
+          <div class="meter-track"><div class="meter-fill" id="be-fill"></div></div>
+          <div class="meter-mark meter-need" id="be-mark-need"><span></span></div>
+          <div class="meter-mark meter-live" id="be-mark-live"><span></span></div>
+          <div class="meter-scale"><span>0%</span><span>50%</span><span>100%</span></div>
+        </div>
+        <p class="be-formula" data-i18n="be.formula"></p>
+        <p class="be-note" id="be-note"></p>
+      </div>
+    </section>
+
+    <!-- 3 实盘回放 -->
+    <section class="section wrap" id="replay" aria-labelledby="rp-title">
+      <div class="section-head">
+        <span class="section-num" data-i18n="rp.num">3</span>
+        <h2 id="rp-title" data-i18n="rp.title">Replay the real 90-minute run</h2>
+      </div>
+      <p class="section-intro" data-i18n="rp.intro"></p>
+
+      <div class="player" id="player">
+        <button type="button" class="btn-primary" id="rp-play"><span data-i18n="rp.play">Play</span></button>
+        <button type="button" class="btn-ghost" id="rp-restart" data-i18n="rp.restart">Restart</button>
+        <label class="speed"><span data-i18n="rp.speed">Speed</span>
+          <select id="rp-speed">
+            <option value="30">30×</option>
+            <option value="60" selected>60×</option>
+            <option value="150">150×</option>
+            <option value="300">300×</option>
+          </select>
+        </label>
+        <input type="range" id="rp-scrub" min="0" max="1000" value="1000" aria-label="Position">
+        <span class="rp-clock" id="rp-clock">–</span>
+      </div>
+
+      <div class="tiles tiles-compact">
+        <div class="tile"><span class="tile-label" data-i18n="rp.trades">Round trips</span><span class="tile-value" id="rp-trades">–</span></div>
+        <div class="tile"><span class="tile-label" data-i18n="rp.net">After fees</span><span class="tile-value" id="rp-net">–</span></div>
+        <div class="tile"><span class="tile-label" data-i18n="rp.fees">Fees</span><span class="tile-value" id="rp-fees">–</span></div>
+        <div class="tile"><span class="tile-label" data-i18n="rp.before">Before fees</span><span class="tile-value" id="rp-before">–</span></div>
+      </div>
+
+      <div class="card chart-card">
+        <div class="card-head">
+          <div>
+            <h3 data-i18n="rp.chart">DOGE price</h3>
+            <p class="card-sub" data-i18n="rp.chart.sub"></p>
+          </div>
+          <div class="legend">
+            <span class="legend-item"><span class="key-up" style="--key: var(--series-1)"></span><span data-i18n="reason.buy">Buy</span></span>
+            <span class="legend-item"><span class="key-dot" style="--key: var(--series-3)"></span><span data-i18n="reason.take_profit">Take profit</span></span>
+            <span class="legend-item"><span class="key-dot" style="--key: var(--series-2)"></span><span data-i18n="reason.stop_loss">Stop loss</span></span>
+            <span class="legend-item"><span class="key-dot" style="--key: var(--neutral-mark)"></span><span data-i18n="reason.timeout">Time limit</span></span>
+          </div>
+        </div>
+        <div id="rp-chart" class="chart-host"></div>
+      </div>
+
+      <div class="rp-grid">
+        <div class="card" id="rp-detail">
+          <div class="card-head"><h3 id="rp-detail-title"></h3></div>
+          <p class="card-sub" id="rp-detail-none" data-i18n="rp.detail.none"></p>
+          <div id="rp-detail-chart" class="chart-host"></div>
+          <dl class="detail-list" id="rp-detail-list"></dl>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3 data-i18n="rp.log">Trade log</h3></div>
+          <div class="table-scroll log-scroll" id="rp-log-scroll">
+            <table class="data-table log-table" id="rp-log">
+              <thead>
+                <tr>
+                  <th class="num" data-i18n="rp.log.n">#</th>
+                  <th data-i18n="rp.log.time">Bought (UTC)</th>
+                  <th class="num" data-i18n="rp.log.held">Held</th>
+                  <th data-i18n="rp.log.exit">Exit</th>
+                  <th class="num" data-i18n="rp.log.price">Before fees</th>
+                  <th class="num" data-i18n="rp.log.net">After fees</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+            <p class="card-sub log-empty" id="rp-log-empty" data-i18n="rp.log.empty"></p>
+          </div>
+        </div>
+      </div>
+      <p class="tip-note" data-i18n="rp.note"></p>
+    </section>
+
+    <section class="section wrap end">
+      <h2 data-i18n="end.title">What I learned</h2>
+      <ul class="learned">
+        <li data-i18n="end.l1"></li>
+        <li data-i18n="end.l2"></li>
+        <li data-i18n="end.l3"></li>
+        <li data-i18n="end.l4"></li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <p><a href="https://github.com/GreatGoldAxe/btc-sim"><span data-i18n="end.code">Code, raw data and the full write-up are on GitHub</span> →</a></p>
+      <p class="muted" data-i18n="end.credit"></p>
+    </div>
+  </footer>
+</body>
+</html>
