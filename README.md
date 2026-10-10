@@ -6,6 +6,8 @@ My first coding project: a paper trading bot and a backtester for Binance, built
 
 Short answer: no. At least not this one. And the reason turned out to be more interesting than I expected.
 
+**Try it in your browser:** [greatgoldaxe.github.io/btc-sim](https://greatgoldaxe.github.io/btc-sim/) (English / 中文). Change the settings and re-run the backtest, check the break-even math, or replay the real 90-minute run trade by trade.
+
 ## Why I made this
 
 I saw a viral post on X claiming a student built a trading bot with AI in 2 days and turned **$68 into $750K**. It had all the usual signs of engagement bait ("comment 'Setup' and I'll DM you"), but it made me curious: *is the idea behind it even possible?*
@@ -113,6 +115,15 @@ cd ..
 # Backtest BTC + DOGE (first run downloads data into backtest/data/)
 python backtest/run_backtest.py --all --days 7    # quick check
 python backtest/run_backtest.py --all --days 90   # full run
+```
+
+### The website (`docs/`)
+
+A static site with no build step and no backend. The backtest runs in the browser (`docs/js/engine.js` is a line-by-line port of the Python engine and gives identical results). Built-in data lives in `docs/data/`; visitors can also download the latest data straight from Binance.
+
+```bash
+python -m http.server 8000 --directory docs       # preview at http://localhost:8000
+python tools/build_site_data.py --end 2026-10-10   # refresh the built-in 90-day snapshot
 ```
 
 Raw data from my 90-minute run is in [`results/`](results/). A more detailed write-up is in [`FINDINGS.md`](FINDINGS.md).
