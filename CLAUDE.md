@@ -32,6 +32,7 @@ python backtest/run_backtest.py --symbol DOGEUSDT --days 90 --force  # 忽略缓
 # 网站 —— 纯静态，没有构建步骤
 python -m http.server 8000 --directory docs        # 本地预览
 python tools/build_site_data.py --end 2026-10-10    # 重建 docs/data/ 内置数据（窗口截至该日 UTC 零点）
+python tools/check_parity.py                         # 核对网页回测与 Python 回测逐位一致
 ```
 
 ## 架构
@@ -53,11 +54,12 @@ python tools/build_site_data.py --end 2026-10-10    # 重建 docs/data/ 内置�
 - 回测初始资金是 100,000 USDT（每笔 100），这样手续费不会中途耗尽本金，能跑出完整曲线。夏普按 UTC 日收益年化。
 
 **`docs/`：静态网站（原生 ES module，无依赖、无后端）**
-- `js/engine.js` 是 `hft/account.py` + `backtest/strategy.py` + `backtest/engine.py` 的逐行移植，结果必须和 Python 逐位一致。**改 Python 回测口径时要同步改这里**，并用同一份数据核对两边的笔数、realized_pnl、total_fees、期末权益。`tools/build_site_data.py` 会顺带写出 `backtest/data/{SYMBOL}_1m_site.csv`，方便 Python 端用同一份数据跑。
+- `js/engine.js` 是 `hft/account.py` + `backtest/strategy.py` + `backtest/engine.py` 的逐行移植，结果必须和 Python 逐位一致。**改 Python 回测口径时要同步改这里**，改完跑 `python tools/check_parity.py`：两边读同一份 `docs/data/*.json`，5 组参数 × 2 个币种，笔数、平仓原因、realized_pnl、total_fees、期末权益必须完全相等（不联网，需要 Node.js）。
 - 网页的手续费是参数（`fee_rate`），Python 端固定读 `hft/account.py` 的 `FEE_RATE`。「扣费前」曲线 = 含费权益 + 累计手续费（信号与手续费无关，成交序列不变）。
 - `docs/data/*.json`：价格按最小价位转成整数再差分存储，网页端用「整数 / 10^decimals」还原，和 Python `float("0.09541")` 是同一个浮点数。`live_run.json` 是 `results/trades.csv` 的逐笔成交 + 同时段 DOGE 1s K 线。
 - 回放的平仓原因是推断的（trades.csv 是旧格式、没有 reason 列）：持仓 ≥58 秒算超时，其余按价差方向，与 FINDINGS.md 的口径一致，推断结果 48/18/2 与 summary.txt 吻合。
 - 「从币安下载最新」直接在浏览器里请求 `data-api.binance.vision`（它返回 `Access-Control-Allow-Origin: *`）。ETH/SOL 没有内置数据，只能现拉。
+- `docs/og.png` 是分享到社交平台时的预览图（1200×630），由 `tools/og_card.html` 用同一套引擎和内置数据现算后截图；内置数据或默认参数变了要重新生成，并同步 `index.html` 里 `og:image:alt` 的数字。
 - 文案在 `js/i18n.js`（en / zh），带 `data-i18n` 的元素切换语言时自动替换；颜色全部是 `css/style.css` 里的 token，深色模式单独取值。
 
 ## 注意事项

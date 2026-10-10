@@ -1,0 +1,105 @@
+<!doctype html>
+<!--
+  docs/og.png（分享到社交平台时的预览图，1200×630）的来源。
+  数据和曲线是用网站同一套引擎和内置数据现算的。重建：在仓库根目录
+    python -m http.server 8766
+  打开 http://127.0.0.1:8766/tools/og_card.html ，等 window.__ready 为 true 后，
+  按 1200×630 截图另存为 docs/og.png。
+-->
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <title>btc-sim social card</title>
+  <link rel="stylesheet" href="../docs/css/style.css">
+  <style>
+    html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; background: var(--page); }
+    .og {
+      box-sizing: border-box; width: 1200px; height: 630px; padding: 56px 60px 44px;
+      display: grid; grid-template-columns: 500px 1fr; grid-template-rows: 1fr auto; gap: 0 40px;
+    }
+    .og-text { display: flex; flex-direction: column; }
+    .og-kicker { color: var(--accent-ink); font-weight: 600; font-size: 20px; margin: 0 0 14px; }
+    .og-title { font-size: 50px; line-height: 1.12; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 14px; }
+    .og-zh { font-size: 22px; white-space: nowrap; color: var(--text-secondary); margin: 0 0 30px; line-height: 1.4; }
+    .og-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: auto; }
+    .og-stat { padding: 14px 18px; border-radius: 14px; background: var(--surface-1); border: 1px solid var(--border); }
+    .og-stat span { display: block; font-size: 17px; color: var(--text-secondary); }
+    .og-stat strong { display: block; white-space: nowrap; font-size: 34px; font-weight: 700; letter-spacing: -0.01em; }
+    .og-stat small { font-size: 18px; font-weight: 600; margin-left: 4px; }
+    .og-chart { background: var(--surface-1); border: 1px solid var(--border); border-radius: 18px; padding: 22px 22px 10px; align-self: stretch; display: flex; flex-direction: column; }
+    .og-chart h2 { font-size: 20px; margin: 0; }
+    .og-chart p { font-size: 15px; color: var(--text-muted); margin: 2px 0 6px; }
+    .og-legend { display: flex; gap: 18px; font-size: 15px; color: var(--text-secondary); margin-bottom: 4px; }
+    .og-legend span { display: inline-flex; align-items: center; gap: 7px; }
+    #chart { flex: 1; }
+    .og-foot { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; margin-top: 26px; font-size: 20px; color: var(--text-secondary); }
+    .og-foot strong { color: var(--text-primary); }
+  </style>
+</head>
+<body>
+  <div class="og">
+    <div class="og-text">
+      <p class="og-kicker">btc-sim · a paper-trading experiment</p>
+      <h1 class="og-title">Can a simple trading bot beat the fees?</h1>
+      <p class="og-zh">简单的交易机器人，扣完手续费还能赚钱吗？</p>
+      <div class="og-stats">
+        <div class="og-stat"><span>Before fees</span><strong class="is-pos" id="before">–</strong></div>
+        <div class="og-stat"><span>After fees</span><strong class="is-neg" id="after">–</strong></div>
+      </div>
+    </div>
+    <div class="og-chart">
+      <h2>BTC · 90 days · <span id="trades">–</span> trades</h2>
+      <p>Cumulative result, USDT</p>
+      <div class="og-legend"><span><i class="key-line" style="--key: var(--series-1)"></i>After fees</span><span><i class="key-line" style="--key: var(--series-2)"></i>Before fees</span></div>
+      <div id="chart"></div>
+    </div>
+    <div class="og-foot">
+      <span><strong>Try it in your browser</strong> · 在浏览器里亲手试试</span>
+      <span>greatgoldaxe.github.io/btc-sim</span>
+    </div>
+  </div>
+  <script type="module">
+    import { run, summarize, DEFAULT_PARAMS, INITIAL_CASH } from "../docs/js/engine.js";
+    import { decodeKlines } from "../docs/js/data.js";
+    import { TimeChart } from "../docs/js/chart.js";
+
+    const fmt = (v) => (v > 0 ? "+" : "−") + Math.abs(v).toLocaleString("en-US", { maximumFractionDigits: 0 });
+    const bars = decodeKlines(await (await fetch("../docs/data/BTCUSDT_1m_90d.json")).json());
+    const { acct, equity, fees } = run(bars, DEFAULT_PARAMS);
+    const s = summarize(acct, equity);
+    const after = new Float64Array(equity.length);
+    const before = new Float64Array(equity.length);
+    for (let i = 0; i < equity.length; i++) {
+      after[i] = equity[i] - INITIAL_CASH;
+      before[i] = equity[i] + fees[i] - INITIAL_CASH;
+    }
+    const setVal = (id, v) => {
+      const el = document.getElementById(id);
+      const unit = document.createElement("small");
+      unit.textContent = "USDT";
+      el.replaceChildren(fmt(v), unit);
+    };
+    setVal("before", s.realizedPnl + s.closedFees);
+    setVal("after", s.realizedPnl);
+    document.getElementById("trades").textContent = s.roundTrips.toLocaleString("en-US");
+
+    const host = document.getElementById("chart");
+    const chart = new TimeChart(host, {
+      height: host.clientHeight,
+      zeroLine: true,
+      endLabels: true,
+      yFormat: (v) => v.toLocaleString("en-US", { maximumFractionDigits: 0 }).replace("-", "−"),
+      xTick: (ms) => new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }),
+      xTooltip: (ms) => new Date(ms).toISOString(),
+    });
+    chart.update({
+      ts: bars.ts,
+      series: [
+        { key: "after", label: "After fees", values: after, color: "--series-1" },
+        { key: "before", label: "Before fees", values: before, color: "--series-2" },
+      ],
+    });
+    window.__ready = true;
+  </script>
+</body>
+</html>
