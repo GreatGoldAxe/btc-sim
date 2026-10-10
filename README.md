@@ -69,6 +69,8 @@ To make sure the 90 minutes weren't just bad luck, I ran a 1-minute version of t
 
 Same story, much bigger sample: before fees, almost exactly zero. After fees, a steady loss of about 0.2% per trade.
 
+*These numbers are from the 90 days up to Sep 29, 2026, when I ran it. The [website](https://greatgoldaxe.github.io/btc-sim/) uses a later 90-day window (Jul 12 – Oct 9, 2026), so its numbers are slightly different (BTC: 31,174 trades, −6.18%, ≈ +52 USDT before fees; DOGE: 39,782 trades, −7.92%, ≈ +37 USDT before fees). Same conclusion.*
+
 ## The math that explains it
 
 Per 100 USDT trade in the live run:
