@@ -113,14 +113,6 @@ def build_klines(session, symbol, end_day):
     }
     path = os.path.join(OUT_DIR, f"{symbol}_1m_{DAYS}d.json")
     _write_json(path, out)
-    # 同时写一份和 backtest/data 同格式的 CSV，供 Python 回测核对用（*.csv 已被 gitignore）
-    csv_path = os.path.join(ROOT, "backtest", "data", f"{symbol}_1m_site.csv")
-    os.makedirs(os.path.dirname(csv_path), exist_ok=True)
-    with open(csv_path, "w", newline="", encoding="utf-8") as f:
-        w = csv.writer(f)
-        w.writerow(["timestamp_ms", "open", "high", "low", "close", "volume"])
-        for b in bars:
-            w.writerow([b[0], b[1], b[2], b[3], b[4], b[5]])
 
 
 def build_live_run(session):
